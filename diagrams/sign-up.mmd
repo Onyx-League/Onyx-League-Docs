@@ -1,0 +1,83 @@
+---
+config:
+  theme: base
+  themeVariables:
+    primaryColor: "#334155"
+    primaryBorderColor: "#64748b"
+    primaryTextColor: "#0f172a"
+    actorBkg: "#1e293b"
+    actorBorder: "#475569"
+    actorTextColor: "#f8fafc"
+    secondaryColor: "#2563eb"
+    secondaryBorderColor: "#3b82f6"
+    secondaryTextColor: "#0f172a"
+    tertiaryColor: "#e2e8f0"
+    tertiaryBorderColor: "#94a3b8"
+    tertiaryTextColor: "#0f172a"
+    lineColor: "#64748b"
+    signalColor: "#475569"
+    noteBkgColor: "#f8fafc"
+    noteBorderColor: "#94a3b8"
+    noteTextColor: "#111827"
+    labelTextColor: "#0f172a"
+    fontFamily: "Inter, Segoe UI, Arial"
+    fontSize: "16px"
+  sequence:
+    actorMargin: 80
+    messageMargin: 45
+    noteMargin: 20
+---
+sequenceDiagram
+    autonumber
+
+    actor Student as "Student (Browser)"
+    participant AuthAPI as "Auth Controller"
+    participant RateLimiter as "Rate Limiter Gate"
+    participant DomainVal as "Domain Validator"
+    participant DB as "PostgreSQL Database"
+    participant SMTP as "Email Gateway (SMTP)"
+
+    Student->>AuthAPI: POST /api/v1/auth/signup
+    AuthAPI->>RateLimiter: Check request limit (IP/Email)
+
+    alt Exceeded Rate Limit
+        RateLimiter-->>AuthAPI: Limit exceeded (Too Many Requests)
+        AuthAPI-->>Student: 429 Too Many Requests
+    else Within Rate Limit
+        RateLimiter-->>AuthAPI: Request allowed
+        AuthAPI->>DomainVal: Validate academic domain
+
+        alt Invalid academic domain
+            DomainVal-->>AuthAPI: Domain rejected
+            AuthAPI-->>Student: 400 Bad Request
+        else Valid academic domain
+            DomainVal-->>AuthAPI: Domain approved
+            AuthAPI->>DB: Check if email exists
+
+            alt Account exists
+                DB-->>AuthAPI: Record found
+                AuthAPI-->>Student: 409 Conflict
+            else New account
+                AuthAPI->>AuthAPI: Hash password and generate OTP
+                AuthAPI->>DB: Create pending user and save OTP
+                DB-->>AuthAPI: User created
+                AuthAPI->>SMTP: Send OTP email
+                SMTP-->>AuthAPI: Email sent
+                AuthAPI-->>Student: 201 Created
+            end
+        end
+    end
+
+    Note over Student,AuthAPI: User enters OTP
+
+    Student->>AuthAPI: POST /api/v1/auth/verify-otp
+    AuthAPI->>DB: Query OTP
+
+    alt OTP invalid or expired
+        DB-->>AuthAPI: Invalid
+        AuthAPI-->>Student: 400 Bad Request
+    else OTP valid
+        AuthAPI->>DB: Activate user and clear OTP
+        DB-->>AuthAPI: Success
+        AuthAPI-->>Student: 200 OK (JWT)
+    end
