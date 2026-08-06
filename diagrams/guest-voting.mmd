@@ -1,0 +1,56 @@
+---
+config:
+  theme: base
+
+  themeVariables:
+    primaryColor: "#334155"
+    primaryBorderColor: "#64748b"
+    primaryTextColor: "#0f172a"
+
+    actorBkg: "#1e293b"
+    actorBorder: "#475569"
+    actorTextColor: "#f8fafc"
+
+    secondaryColor: "#2563eb"
+    secondaryBorderColor: "#3b82f6"
+    secondaryTextColor: "#0f172a"
+
+    tertiaryColor: "#e2e8f0"
+    tertiaryBorderColor: "#94a3b8"
+    tertiaryTextColor: "#0f172a"
+
+    lineColor: "#64748b"
+    signalColor: "#475569"
+
+    noteBkgColor: "#f8fafc"
+    noteBorderColor: "#94a3b8"
+    noteTextColor: "#111827"
+
+    labelTextColor: "#0f172a"
+
+    fontFamily: "Inter, Segoe UI, Arial"
+    fontSize: "16px"
+
+  sequence:
+    actorMargin: 80
+    messageMargin: 45
+    noteMargin: 20
+---
+sequenceDiagram
+    autonumber
+    actor Student as Authenticated Student
+    participant VoteAPI as Voting Controller
+    participant DB as Database
+
+    Student->>VoteAPI: POST /api/v1/votes (SeasonID, CandidateID) [JWT Auth Token]
+    VoteAPI->>VoteAPI: Extract UserID from Auth Token
+    VoteAPI->>DB: Check if User Has Already Voted in this Season
+    
+    alt Duplicate Vote Attempt
+        DB-->>VoteAPI: Record Exists
+        VoteAPI-->>Student: 409 Conflict ("You have already voted in this season")
+    else First-Time Vote
+        VoteAPI->>DB: Insert Vote Record (SeasonID, UserID, CandidateID)
+        DB-->>VoteAPI: Success
+        VoteAPI-->>Student: 200 OK ("Vote successfully cast")
+    end

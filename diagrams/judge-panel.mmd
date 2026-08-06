@@ -1,0 +1,64 @@
+---
+config:
+  theme: base
+
+  themeVariables:
+    primaryColor: "#334155"
+    primaryBorderColor: "#64748b"
+    primaryTextColor: "#0f172a"
+
+    actorBkg: "#1e293b"
+    actorBorder: "#475569"
+    actorTextColor: "#f8fafc"
+
+    secondaryColor: "#2563eb"
+    secondaryBorderColor: "#3b82f6"
+    secondaryTextColor: "#0f172a"
+
+    tertiaryColor: "#e2e8f0"
+    tertiaryBorderColor: "#94a3b8"
+    tertiaryTextColor: "#0f172a"
+
+    lineColor: "#64748b"
+    signalColor: "#475569"
+
+    noteBkgColor: "#f8fafc"
+    noteBorderColor: "#94a3b8"
+    noteTextColor: "#111827"
+
+    labelTextColor: "#0f172a"
+
+    fontFamily: "Inter, Segoe UI, Arial"
+    fontSize: "16px"
+
+  sequence:
+    actorMargin: 80
+    messageMargin: 45
+    noteMargin: 20
+---
+sequenceDiagram
+  autonumber
+  actor Judge as Panel Judge
+  participant EvalAPI as Evaluation Controller
+  participant DB as Database
+  participant RankEngine as Leaderboard Engine
+
+  Judge->>EvalAPI: GET /api/v1/judge/submissions/{id}
+  EvalAPI->>DB: Fetch Finalist Deliverables & Rubric Criteria
+  DB-->>EvalAPI: Submission Data
+  EvalAPI-->>Judge: Display Rubric UI (Idea, Code, UI/UX)
+
+  Judge->>EvalAPI: POST /api/v1/judge/evaluations (SubmissionID, CriterionScores)
+  EvalAPI->>DB: Insert/Update Judge Evaluation Record
+  
+  alt Standard Flow: All Assigned Judges Evaluated
+      EvalAPI->>EvalAPI: Calculate Final Aggregate Score
+      EvalAPI->>DB: Save Final Match Score & Advance Winner in Bracket
+      EvalAPI->>RankEngine: Trigger Leaderboard Recalculation
+  else Timeout / Admin Force Close Triggered
+      EvalAPI->>EvalAPI: Calculate Weighted Average from Available Judge Scores
+      EvalAPI->>DB: Save Final Match Score & Advance Winner
+      EvalAPI->>RankEngine: Trigger Leaderboard Recalculation
+  end
+  
+  EvalAPI-->>Judge: 200 OK ("Evaluation saved successfully")

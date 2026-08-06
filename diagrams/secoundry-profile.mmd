@@ -1,0 +1,55 @@
+---
+config:
+  theme: base
+
+  themeVariables:
+    primaryColor: "#334155"
+    primaryBorderColor: "#64748b"
+    primaryTextColor: "#0f172a"
+
+    actorBkg: "#1e293b"
+    actorBorder: "#475569"
+    actorTextColor: "#f8fafc"
+
+    secondaryColor: "#2563eb"
+    secondaryBorderColor: "#3b82f6"
+    secondaryTextColor: "#0f172a"
+
+    tertiaryColor: "#e2e8f0"
+    tertiaryBorderColor: "#94a3b8"
+    tertiaryTextColor: "#0f172a"
+
+    lineColor: "#64748b"
+    signalColor: "#475569"
+
+    noteBkgColor: "#f8fafc"
+    noteBorderColor: "#94a3b8"
+    noteTextColor: "#111827"
+
+    labelTextColor: "#0f172a"
+
+    fontFamily: "Inter, Segoe UI, Arial"
+    fontSize: "16px"
+
+  sequence:
+    actorMargin: 80
+    messageMargin: 45
+    noteMargin: 20
+---
+sequenceDiagram
+    autonumber
+    actor Student as Student (Browser)
+    participant ProfileAPI as Profile Controller
+    participant DB as PostgreSQL Database
+
+    Student->>ProfileAPI: POST /api/v1/profile/link-secondary (SecondaryEmail, GitHubHandle)
+    ProfileAPI->>DB: Check if Secondary Email/GitHub is already linked to another account
+    
+    alt Identity Already Linked
+        DB-->>ProfileAPI: Conflict Found
+        ProfileAPI-->>Student: 409 Conflict ("Account already linked to another user")
+    else Unique Secondary Info
+        ProfileAPI->>DB: Update User Record (PersonalEmail, GitHubProfile)
+        DB-->>ProfileAPI: Update Success
+        ProfileAPI-->>Student: 200 OK ("Secondary profile linked successfully")
+    end

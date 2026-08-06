@@ -1,0 +1,76 @@
+---
+config:
+  theme: base
+
+  themeVariables:
+    primaryColor: "#334155"
+    primaryBorderColor: "#64748b"
+    primaryTextColor: "#0f172a"
+
+    actorBkg: "#1e293b"
+    actorBorder: "#475569"
+    actorTextColor: "#f8fafc"
+
+    secondaryColor: "#2563eb"
+    secondaryBorderColor: "#3b82f6"
+    secondaryTextColor: "#0f172a"
+
+    tertiaryColor: "#e2e8f0"
+    tertiaryBorderColor: "#94a3b8"
+    tertiaryTextColor: "#0f172a"
+
+    lineColor: "#64748b"
+    signalColor: "#475569"
+
+    noteBkgColor: "#f8fafc"
+    noteBorderColor: "#94a3b8"
+    noteTextColor: "#111827"
+
+    labelTextColor: "#0f172a"
+
+    fontFamily: "Inter, Segoe UI, Arial"
+    fontSize: "16px"
+
+  sequence:
+    actorMargin: 80
+    messageMargin: 45
+    noteMargin: 20
+---
+sequenceDiagram
+    autonumber
+    actor Competitor as Competitor
+    participant SubAPI as Submission Controller
+    participant GithubAPI as External Github API
+    participant ExtMediaAPI as External APIs (Drive/Figma)
+    participant DB as Database Controller
+
+    Competitor->>SubAPI: POST /api/v1/matches/{id}/submissions (GithubUrl, DriveUrl)
+
+    alt Github URL Provided
+        SubAPI->>GithubAPI: GET /repos/{owner}/{repo}
+        alt Repo Invalid or Private (404/403)
+            GithubAPI-->>SubAPI: Error
+            SubAPI-->>Competitor: 422 Unprocessable Entity ("GitHub repository must be public")
+        else Repo Valid Public (200 OK)
+            GithubAPI-->>SubAPI: Valid
+        end
+    end
+
+    alt Drive / Figma URL Provided
+        SubAPI->>SubAPI: Validate Domain Regex (drive.google.com / figma.com)
+        alt Invalid Domain
+            SubAPI-->>Competitor: 400 Bad Request ("Invalid Drive/Figma link format")
+        else Valid Domain Format
+            SubAPI->>ExtMediaAPI: GET File Metadata (Check Permissions)
+            alt File Private or Invalid (403/404)
+                ExtMediaAPI-->>SubAPI: Error (Authentication Required or Not Found)
+                SubAPI-->>Competitor: 422 Unprocessable Entity ("Drive/Figma link must be publicly accessible")
+            else File Public (200 OK)
+                ExtMediaAPI-->>SubAPI: Valid (Publicly Viewable)
+            end
+        end
+    end
+
+    SubAPI->>DB: Save Match Milestone Submission Record
+    DB-->>SubAPI: Success
+    SubAPI-->>Competitor: 201 Created ("Milestone submission received successfully")
