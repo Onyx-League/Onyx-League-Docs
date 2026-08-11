@@ -1,36 +1,27 @@
 ---
 config:
   theme: base
-
   themeVariables:
     primaryColor: "#334155"
     primaryBorderColor: "#64748b"
     primaryTextColor: "#0f172a"
-
     actorBkg: "#1e293b"
     actorBorder: "#475569"
     actorTextColor: "#f8fafc"
-
     secondaryColor: "#2563eb"
     secondaryBorderColor: "#3b82f6"
     secondaryTextColor: "#0f172a"
-
     tertiaryColor: "#e2e8f0"
     tertiaryBorderColor: "#94a3b8"
     tertiaryTextColor: "#0f172a"
-
     lineColor: "#64748b"
     signalColor: "#475569"
-
     noteBkgColor: "#f8fafc"
     noteBorderColor: "#94a3b8"
     noteTextColor: "#111827"
-
     labelTextColor: "#0f172a"
-
     fontFamily: "Inter, Segoe UI, Arial"
     fontSize: "16px"
-
   sequence:
     actorMargin: 80
     messageMargin: 45
@@ -40,8 +31,9 @@ sequenceDiagram
   autonumber
   actor Judge as Panel Judge
   participant EvalAPI as Evaluation Controller
-  participant DB as Database
+  participant DB as Database (PostgreSQL)
   participant RankEngine as Leaderboard Engine
+  participant Cache as Redis Cache (ZSET)
 
   Judge->>EvalAPI: GET /api/v1/judge/submissions/{id}
   EvalAPI->>DB: Fetch Finalist Deliverables & Rubric Criteria
@@ -54,11 +46,15 @@ sequenceDiagram
   alt Standard Flow: All Assigned Judges Evaluated
       EvalAPI->>EvalAPI: Calculate Final Aggregate Score
       EvalAPI->>DB: Save Final Match Score & Advance Winner in Bracket
-      EvalAPI->>RankEngine: Trigger Leaderboard Recalculation
+      EvalAPI->>RankEngine: Trigger Score Recalculation
   else Timeout / Admin Force Close Triggered
       EvalAPI->>EvalAPI: Calculate Weighted Average from Available Judge Scores
       EvalAPI->>DB: Save Final Match Score & Advance Winner
-      EvalAPI->>RankEngine: Trigger Leaderboard Recalculation
+      EvalAPI->>RankEngine: Trigger Score Recalculation
   end
+
+  RankEngine->>DB: Update Persistent Accumulative Scores
+  RankEngine->>Cache: Update Scores in Redis ZSET (ZADD leaderboard:individual & leaderboard:university)
+  Cache-->>RankEngine: Cache Updated
   
-  EvalAPI-->>Judge: 200 OK ("Evaluation saved successfully")
+  EvalAPI-->>Judge: 200 OK ("Evaluation saved & Leaderboard updated")

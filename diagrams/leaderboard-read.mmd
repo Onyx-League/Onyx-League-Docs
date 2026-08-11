@@ -1,0 +1,49 @@
+---
+config:
+  theme: base
+  themeVariables:
+    primaryColor: "#334155"
+    primaryBorderColor: "#64748b"
+    primaryTextColor: "#0f172a"
+    actorBkg: "#1e293b"
+    actorBorder: "#475569"
+    actorTextColor: "#f8fafc"
+    secondaryColor: "#2563eb"
+    secondaryBorderColor: "#3b82f6"
+    secondaryTextColor: "#0f172a"
+    tertiaryColor: "#e2e8f0"
+    tertiaryBorderColor: "#94a3b8"
+    tertiaryTextColor: "#0f172a"
+    lineColor: "#64748b"
+    signalColor: "#475569"
+    noteBkgColor: "#f8fafc"
+    noteBorderColor: "#94a3b8"
+    noteTextColor: "#111827"
+    labelTextColor: "#0f172a"
+    fontFamily: "Inter, Segoe UI, Arial"
+    fontSize: "16px"
+  sequence:
+    actorMargin: 80
+    messageMargin: 45
+    noteMargin: 20
+---
+sequenceDiagram
+    autonumber
+    actor Client as Client / Guest Viewer
+    participant API as Leaderboard Controller
+    participant Cache as Redis Cache
+    participant DB as PostgreSQL DB
+
+    Client->>API: GET /api/v1/leaderboards/individual (SeasonID, Domain)
+    API->>Cache: ZREVRANGE leaderboard:individual:{season_id}:{domain} 0 49
+    
+    alt Cache Hit (Data Exists in Redis)
+        Cache-->>API: Return Top 50 Ranked Competitors
+        API-->>Client: 200 OK (Fast Cached Response <= 50ms)
+    else Cache Miss (Cache Expired or Empty)
+        Cache-->>API: Null / Key Not Found
+        API->>DB: Query Aggregated Points & Rank
+        DB-->>API: Return Leaderboard Data
+        API->>Cache: Repopulate Redis ZSET (ZADD) with TTL
+        API-->>Client: 200 OK (DB Response)
+    end
