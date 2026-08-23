@@ -4,7 +4,9 @@
 
 Onyx League is a competitive digital platform tailored exclusively for university students allowing students to compete in seasonal technology leagues, while earning competitive titles and rankings on individual and inter-university leaderboards.
 
-Jump to the [SRS File](requirements/(SRS)-%20Onyx%20League%20V4%20(Current-Final%20Version)%20.docx) for more information.
+Jump to the [SRS File](SRS/(SRS)-%20Onyx%20League%20V4%20(Current-Final%20Version)%20.docx) for more information.
+
+Jump to the [User stories folder](US/) to read User stories.
 
 ## Repository Structure
 
